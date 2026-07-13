@@ -1,0 +1,38 @@
+name: Enterprise Cloud Infrastructure Monorepo CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  audit-verify-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out Repository Source Code
+        uses: actions/checkout@v4
+
+      - name: Initialize Node.js Environment Tooling
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Clean Install Monorepo Node Dependencies
+        run: npm ci
+
+      - name: Compile and Verify Shared Database Schema
+        run: npx prisma generate --schema=packages/database/prisma/schema.prisma
+
+      - name: Run Multi-Package Lint Tasks via Turborepo
+        run: npx turbo run lint
+
+      - name: Run Full Integration & Unit Test Matrices (Jest)
+        run: npx turbo run test
+
+      - name: Build Code Artifacts for Next.js & NestJS Services
+        run: npx turbo run build

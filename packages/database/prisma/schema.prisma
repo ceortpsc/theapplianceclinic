@@ -1,0 +1,187 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  OWNER
+  ADMINISTRATOR
+  OFFICE_MANAGER
+  DISPATCHER
+  TECHNICIAN
+  WAREHOUSE
+  PAYROLL
+  HR
+  ACCOUNTING
+  CUSTOMER_SERVICE
+  SALES
+  MANAGER
+  AUDITOR
+  READ_ONLY
+}
+
+enum WorkOrderStatus {
+  UNASSIGNED
+  SCHEDULED
+  EN_ROUTE
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELED
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           UserRole       @default(READ_ONLY)
+  department     String?
+  mfaSecret      String?
+  isMfaEnabled   Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  auditLogs      AuditLog[]
+  assignedOrders WorkOrder[]    @relation("TechAssignments")
+  timeCards      TimeCard[]
+  payrolls       PayrollEntry[]
+}
+
+model Customer {
+  id             String         @id @default(uuid())
+  squareId       String?        @unique
+  companyName    String?
+  firstName      String
+  lastName       String
+  email          String         @unique
+  phone          String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  equipment      Equipment[]
+  workOrders     WorkOrder[]
+  invoices       Invoice[]
+}
+
+model Equipment {
+  id             String         @id @default(uuid())
+  customerId     String
+  customer       Customer       @relation(fields: [customerId], references: [id])
+  type           String
+  brand          String
+  modelNumber    String
+  serialNumber   String         @unique
+  warrantyExpiry DateTime?
+  workOrders     WorkOrder[]
+}
+
+model WorkOrder {
+  id             String          @id @default(uuid())
+  status         WorkOrderStatus @default(UNASSIGNED)
+  customerId     String
+  customer       Customer        @relation(fields: [customerId], references: [id])
+  equipmentId    String?
+  equipment      Equipment?      @relation(fields: [equipmentId], references: [id])
+  technicianId   String?
+  technician     User?           @relation("TechAssignments", fields: [technicianId], references: [id])
+  description    String
+  scheduledDate  DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  invoices       Invoice[]
+}
+
+model Invoice {
+  id              String             @id @default(uuid())
+  squareInvoiceId String?            @unique
+  customerId      String
+  customer        Customer           @relation(fields: [customerId], references: [id])
+  workOrderId     String
+  workOrder       WorkOrder          @relation(fields: [workOrderId], references: [id])
+  totalAmount     Decimal            @db.Decimal(12, 2)
+  taxAmount       Decimal            @db.Decimal(12, 2)
+  isPaid          Boolean            @default(false)
+  createdAt       DateTime           @default(now())
+  jeGroup         JournalEntryGroup?
+}
+
+model Account {
+  id      String        @id @default(uuid())
+  code    String        @unique
+  name    String
+  type    AccountType
+  balance Decimal       @db.Decimal(14, 2) @default(0.00)
+  lines   JournalLine[]
+}
+
+model JournalEntryGroup {
+  id          String        @id @default(uuid())
+  description String
+  referenceId String?
+  invoiceId   String?       @unique
+  invoice     Invoice?      @relation(fields: [invoiceId], references: [id])
+  postedAt    DateTime      @default(now())
+  lines       JournalLine[]
+}
+
+model JournalLine {
+  id        String            @id @default(uuid())
+  groupId   String
+  group     JournalEntryGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account           @relation(fields: [accountId], references: [id])
+  debit     Decimal           @db.Decimal(14, 2) @default(0.00)
+  credit    Decimal           @db.Decimal(14, 2) @default(0.00)
+}
+
+model TimeCard {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  clockIn     DateTime
+  clockOut    DateTime?
+  totalHours  Float    @default(0.0)
+  isProcessed Boolean  @default(false)
+}
+
+model PayrollEntry {
+  id                       String   @id @default(uuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id])
+  payPeriodStart           DateTime
+  payPeriodEnd             DateTime
+  grossPay                 Decimal  @db.Decimal(12, 2)
+  netPay                   Decimal  @db.Decimal(12, 2)
+  taxWithheld              Decimal  @db.Decimal(12, 2)
+  isDirectDepositExecuted  Boolean  @default(false)
+  createdAt                DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  resource   String
+  resourceId String?
+  payload    Json?
+  ipAddress  String
+  userAgent  String
+  timestamp  DateTime @default(now())
+}
