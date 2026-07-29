@@ -1,38 +1,61 @@
-name: Enterprise Cloud Infrastructure Monorepo CI/CD Pipeline
+name: Enterprise Client POS Monorepo CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'enterprise/**']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appliance-clinic-legacy-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit-verify-build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/appliance_clinic_ci?schema=public'
+      NEXT_TELEMETRY_DISABLED: '1'
 
     steps:
-      - name: Check out Repository Source Code
+      - name: Check out independent client product
         uses: actions/checkout@v4
 
-      - name: Initialize Node.js Environment Tooling
+      - name: Initialize Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Clean Install Monorepo Node Dependencies
-        run: npm ci
+      - name: Install monorepo dependencies
+        run: npm install --no-audit --no-fund
 
-      - name: Compile and Verify Shared Database Schema
-        run: npx prisma generate --schema=packages/database/prisma/schema.prisma
+      - name: Validate and generate shared database schema
+        run: |
+          npm run schema:validate
+          npm run schema:generate
 
-      - name: Run Multi-Package Lint Tasks via Turborepo
-        run: npx turbo run lint
+      - name: Test material store workflow controls
+        run: npm run test --workspace=@clinic/api-gateway -- operations-registry.service.spec.ts --runInBand
 
-      - name: Run Full Integration & Unit Test Matrices (Jest)
-        run: npx turbo run test
+      - name: Run available lint tasks
+        run: npx turbo run lint --continue
 
-      - name: Build Code Artifacts for Next.js & NestJS Services
-        run: npx turbo run build
+      - name: Run available test tasks
+        run: npx turbo run test --continue
+
+      - name: Build Next.js and NestJS applications
+        run: npm run build
+
+      - name: Enforce independent-client boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --include='package.json' '(@ross/|WORKSPACEIRS|rtpsctaxplatform|rtpsc-backoffice)' apps packages package.json; then
+            echo 'RTPSC tax-software runtime coupling is prohibited in The Appliance Clinic client product.' >&2
+            exit 1
+          fi
