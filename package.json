@@ -1,6 +1,6 @@
 {
   "name": "theapplianceclinic",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -11,15 +11,27 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "dev": "turbo run dev",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "schema:validate": "npm run db:validate --workspace=@clinic/database",
+    "schema:generate": "npm run db:generate --workspace=@clinic/database",
+    "validate": "npm run schema:validate && npm run build",
+    "validate:full": "npm run schema:validate && npm run lint && npm run test && npm run build"
+  },
+  "overrides": {
+    "postcss": "8.5.18",
+    "multer": "2.2.0",
+    "body-parser": "2.2.0",
+    "express": "5.1.0",
+    "qs": "6.15.2",
+    "file-type": "21.3.4"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
-    "typescript": "^5.4.5",
-    "prettier": "^3.3.0"
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3",
+    "prettier": "^3.6.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.9.0"
   },
-  "packageManager": "npm@10.5.0"
+  "packageManager": "npm@10.9.4"
 }

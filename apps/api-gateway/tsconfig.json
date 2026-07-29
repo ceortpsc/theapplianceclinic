@@ -19,7 +19,9 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "packages/database/src/*": ["../../packages/database/src/*"],
-      "@clinic/common": ["../../packages/common/src/index.ts"]
+      "@clinic/common": ["../../packages/common/src/index.ts"],
+      "@clinic/store-operations": ["../../packages/store-operations/src/index.ts"],
+      "@clinic/store-operations/engine": ["../../packages/store-operations/src/engine.ts"]
     }
   },
   "include": ["src/**/*"]

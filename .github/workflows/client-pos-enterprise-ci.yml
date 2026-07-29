@@ -1,0 +1,141 @@
+name: Client POS Enterprise Quality Gates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - 'enterprise/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appliance-clinic-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/appliance_clinic_ci?schema=public'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  validate:
+    name: Schema, contracts, tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout independent client product
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install monorepo dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Prisma store schema
+        run: npm run schema:validate
+
+      - name: Generate Prisma client
+        run: npm run schema:generate
+
+      - name: Test store workflow and AI controls
+        run: npm run test --workspace=@clinic/api-gateway -- operations-registry.service.spec.ts --runInBand
+
+      - name: Build independent product monorepo
+        run: npm run build
+
+      - name: Enforce client-product dependency boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --include='package.json' '(@ross/|WORKSPACEIRS|rtpsctaxplatform|rtpsc-backoffice)' apps packages package.json; then
+            echo 'Tax-software or RTPSC runtime coupling is prohibited in the client POS product.' >&2
+            exit 1
+          fi
+
+      - name: Validate required enterprise assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docs/INDEPENDENT_CLIENT_PRODUCT_CHARTER.md
+          test -f docs/PRODUCT_INDEX.md
+          test -f docs/DATABASE_MIGRATION_WAVE1.md
+          test -f packages/store-operations/src/index.ts
+          test -f packages/store-operations/src/engine.ts
+          test -f apps/web-client/src/app/operations/page.tsx
+          test -f apps/web-client/src/app/operations/[module]/page.tsx
+          test -f apps/api-gateway/src/apps/operations-registry/operations-registry.controller.ts
+          test -f apps/api-gateway/src/apps/operations-registry/operations-registry.service.spec.ts
+          test -f packages/database/prisma/schema.prisma
+          test "$(grep -c "id: '" packages/store-operations/src/index.ts)" -ge 20
+
+      - name: Create architecture evidence
+        shell: bash
+        run: |
+          mkdir -p release-evidence
+          cp package-lock.json release-evidence/package-lock.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const paths = [
+            'docs/INDEPENDENT_CLIENT_PRODUCT_CHARTER.md',
+            'docs/PRODUCT_INDEX.md',
+            'docs/DATABASE_MIGRATION_WAVE1.md',
+            'packages/store-operations/src/index.ts',
+            'packages/store-operations/src/engine.ts',
+            'packages/database/prisma/schema.prisma',
+            'apps/web-client/src/app/page.tsx',
+            'apps/web-client/src/app/operations/page.tsx',
+            'apps/web-client/src/app/operations/[module]/page.tsx',
+            'apps/api-gateway/src/apps/operations-registry/operations-registry.controller.ts',
+            'apps/api-gateway/src/apps/operations-registry/operations-registry.service.spec.ts',
+            'release-evidence/package-lock.json'
+          ];
+          const artifacts = paths.map((path) => {
+            const content = fs.readFileSync(path);
+            return {
+              path,
+              bytes: content.length,
+              sha256: crypto.createHash('sha256').update(content).digest('hex')
+            };
+          });
+          fs.writeFileSync('release-evidence/architecture-manifest.json', JSON.stringify({
+            contract: 'appliance-clinic.release-evidence.v1',
+            product: 'The Appliance Clinic POS and Store Operations Platform',
+            boundary: 'independent-client-product',
+            commit: process.env.GITHUB_SHA,
+            generatedAt: new Date().toISOString(),
+            artifacts
+          }, null, 2));
+          NODE
+
+      - name: Upload architecture evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: appliance-clinic-enterprise-${{ github.sha }}
+          path: release-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  credential-pattern-review:
+    name: Credential and secret pattern review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout independent client product
+        uses: actions/checkout@v4
+      - name: Reject committed credential patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude-dir=.git --exclude='*.md' '(BEGIN (RSA|EC|OPENSSH) PRIVATE KEY|AKIA[0-9A-Z]{16}|sk-proj-[A-Za-z0-9_-]{20,}|client_secret[[:space:]]*[:=][[:space:]]*[A-Za-z0-9_-]{12,})' .; then
+            echo 'Credential-like material detected. Replace it with an approved secret reference.' >&2
+            exit 1
+          fi
