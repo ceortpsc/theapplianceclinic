@@ -56,6 +56,10 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@clinic/store-operations$": "<rootDir>/../../../packages/store-operations/src/index.ts",
+      "^@clinic/store-operations/engine$": "<rootDir>/../../../packages/store-operations/src/engine.ts"
+    },
     "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
