@@ -1,59 +1,130 @@
-# The Appliance Clinic — Enterprise Management Platform
+# The Appliance Clinic — POS and Store Operations Platform
 
-> A Modular Monorepo Blueprint by **Ross Tax Pro Software Co.**
+> Independent client application for appliance sales, inventory, repair, dispatch, pickup, delivery, employees, payroll, accounting, analytics and supervised AI operations.
 
-A production-ready, enterprise-grade cloud application for high-volume operational, financial, and compliance workflows.
+## Business and product boundary
 
----
+This repository is a client-commissioned business application for **The Appliance Clinic**. It is not part of a taxpayer, ERO, e-file, transcript, refund, tax-practice or tax-software system.
+
+Ross Tax Pro Software Co. may provide software engineering, implementation, maintenance, documentation or operational consulting under the applicable client engagement. That development relationship does not authorize data sharing or runtime coupling with any RTPSC tax platform.
+
+The application must maintain separate client data, users, authentication, infrastructure, credentials, storage, backups, monitoring, release evidence and incident records.
 
 ## Architecture
 
-```
-the-appliance-clinic/
-├── .github/workflows/       # CI/CD & Security scan pipelines
+```text
+theapplianceclinic/
+├── .github/workflows/
+│   └── client-pos-enterprise-ci.yml      # Schema, build, boundary and evidence gates
 ├── apps/
-│   ├── web-client/          # Next.js 14 + React 18 + Tailwind CSS
-│   └── api-gateway/         # NestJS Gateway (RBAC, JWT/MFA, WebSockets)
+│   ├── web-client/                       # Next.js customer and staff experiences
+│   │   └── src/app/
+│   │       ├── page.tsx                  # Branded public/store entry
+│   │       └── operations/
+│   │           ├── page.tsx              # Store command center
+│   │           └── [module]/page.tsx     # Purpose-built domain dossiers
+│   └── api-gateway/                      # NestJS authenticated operations gateway
 │       └── src/apps/
-│           ├── accounting/  # Double-entry ledger + IRS Form 941
-│           ├── crm/         # Customers, Equipment, Work Orders
-│           ├── dispatch/    # Live GPS dispatch + WebSocket gateway
-│           ├── hr-payroll/  # Time cards + Payroll processing
-│           └── inventory/   # Equipment & parts tracking
+│           ├── accounting/
+│           ├── crm/
+│           ├── dispatch/
+│           ├── hr-payroll/
+│           ├── inventory/
+│           └── operations-registry/      # Domain, workflow and AI contracts
 ├── packages/
-│   ├── database/            # Prisma schema + PrismaService
-│   └── common/              # Shared types, DTOs, constants
-├── docker/                  # Dev & prod Docker Compose configs
-├── docs/                    # Handbook & Deployment Guide
-└── turbo.json               # Turborepo orchestration
+│   ├── common/                           # Shared DTOs and types
+│   ├── database/                         # Prisma/PostgreSQL store data model
+│   └── store-operations/                 # Modules, actions, transitions, triggers and AI rules
+├── docker/                               # Development and production containers
+├── docs/
+│   ├── INDEPENDENT_CLIENT_PRODUCT_CHARTER.md
+│   ├── HANDBOOK.md
+│   └── DEPLOYMENT.md
+└── turbo.json                            # Monorepo task orchestration
 ```
 
-## Quick Start
+## Operating domains
+
+1. **Sales Counter Command** — carts, serial-specific items, approved adjustments, payments, receipts and fulfillment creation.
+2. **Inventory and Warehouse Control** — receiving, inspection, grading, refurbishment, pricing, reservations, transfers and stock exceptions.
+3. **Customer Relationship Office** — customer profiles, verified contacts, communication preferences, purchases, repairs and support cases.
+4. **Order and Fulfillment Office** — confirmed orders, inventory allocation, pickup/delivery selection, installation details and completion.
+5. **Repair and Service Workshop** — diagnosis, estimates, approvals, parts, technician assignments, quality review and release.
+6. **Field Dispatch Command** — appointment windows, routes, technician status, delays, arrival and visit evidence.
+7. **Pickup and Delivery Control** — manifests, vehicles, crews, warehouse release, customer readiness and proof of delivery.
+8. **Employee Operations** — roles, schedules, attendance, training, assignments and access controls.
+9. **Payroll Operations** — pay periods, approved time, exceptions, registers, payment instructions and employee statements.
+10. **Store Accounting and Ledger** — double-entry records, inventory, sales, payments, payroll, reconciliation and close.
+11. **Store Intelligence Center** — margin, stock aging, service time, delivery performance, capacity and exception analytics.
+12. **AI Operations Workforce** — supervised support, product, scheduling, document and management assistance.
+
+## Data model
+
+The PostgreSQL/Prisma schema includes:
+
+- stores, users and role assignments;
+- customers and communication preferences;
+- registered POS terminals;
+- serial-number appliance inventory;
+- sales orders and line items;
+- payment-result records;
+- fulfillment orders;
+- delivery manifests and stops;
+- equipment and repair work orders;
+- invoices and double-entry journal records;
+- time cards and payroll entries;
+- AI task contracts, outputs and human dispositions;
+- operational events and audit logs.
+
+## Workflow and AI controls
+
+Material operations declare valid states, actors, evidence, approval mode, emitted event and fail-closed outcome.
+
+AI may assist with approved customer-service drafts, product descriptions, scheduling proposals, document classification and operational summaries. AI may not:
+
+- issue or approve refunds;
+- alter payment settlement records;
+- approve payroll or release payroll payments;
+- write off inventory or change serial numbers;
+- make employment or disciplinary decisions;
+- publish final routes without dispatcher approval;
+- guarantee delivery, repair, sales or financial outcomes;
+- access any unrelated business or tax-software data.
+
+## Quick start
 
 ```bash
-# 1. Install all workspace dependencies
 npm install
 
-# 2. Start the development database
+# Validate the independent store schema
+npm run schema:validate
+
+# Generate the Prisma client
+npm run schema:generate
+
+# Start development dependencies
 docker-compose -f docker/dev.dockercompose.yml up -d
 
-# 3. Push Prisma schema to database
-npx prisma db push --schema=packages/database/prisma/schema.prisma
-
-# 4. Run all dev servers
-npx turbo run dev
+# Start applications
+npm run dev
 ```
 
-## Key Features
+## Validation
 
-- **RBAC + JWT + MFA** — 14 user roles with route-level access control and TOTP MFA
-- **Double-Entry Accounting** — Balanced journal entries with real-time account balance updates
-- **Live Dispatch** — WebSocket-powered GPS tracking for field technicians
-- **IRS Form 941** — Automated quarterly payroll tax aggregation
-- **SOC2/HIPAA Audit Logging** — Immutable audit trail for all protected access
-- **Turborepo Monorepo** — Unified CI/CD with shared types across frontend and backend
+```bash
+npm run validate        # Prisma schema + monorepo build
+npm run validate:full   # Schema + lint + tests + build
+```
 
-## Documentation
+GitHub quality gates also check the client-product dependency boundary, credential patterns and architecture evidence.
 
-- [Corporate Handbook & Compliance Framework](docs/HANDBOOK.md)
-- [Production Deployment Guide](docs/DEPLOYMENT.md)
+## Release classification
+
+- `design-complete`
+- `implemented`
+- `controlled`
+- `integration-ready`
+- `production-candidate`
+- `production-active`
+
+A rendered interface or adapter stub is never represented as `production-active` without client approval, production credentials, migration evidence, monitoring, backups and rollback readiness.
