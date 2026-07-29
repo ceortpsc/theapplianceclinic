@@ -6,6 +6,11 @@ import {
   storeWorkflowTransitions,
   type StoreModuleId,
 } from '@clinic/store-operations';
+import {
+  evaluateStoreTransition,
+  resolveStoreEventTriggers,
+  type StoreTransitionRequest,
+} from '@clinic/store-operations/engine';
 
 @Injectable()
 export class OperationsRegistryService {
@@ -40,6 +45,23 @@ export class OperationsRegistryService {
       contract: 'appliance-clinic.workflow-contract.v1',
       transitions: storeWorkflowTransitions,
       triggers: storeEventTriggers,
+    };
+  }
+
+  evaluateTransition(request: StoreTransitionRequest) {
+    return {
+      contract: 'appliance-clinic.transition-decision.v1',
+      productBoundary: 'independent-client-store-platform',
+      decision: evaluateStoreTransition(request),
+    };
+  }
+
+  resolveTriggers(event: string) {
+    return {
+      contract: 'appliance-clinic.trigger-resolution.v1',
+      event,
+      resolvedAt: new Date().toISOString(),
+      tasks: resolveStoreEventTriggers(event),
     };
   }
 
