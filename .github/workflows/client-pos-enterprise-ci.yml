@@ -23,7 +23,7 @@ env:
 
 jobs:
   validate:
-    name: Schema, contracts and production build
+    name: Schema, contracts, tests and production build
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -46,6 +46,9 @@ jobs:
       - name: Generate Prisma client
         run: npm run schema:generate
 
+      - name: Test store workflow and AI controls
+        run: npm run test --workspace=@clinic/api-gateway -- operations-registry.service.spec.ts --runInBand
+
       - name: Build independent product monorepo
         run: npm run build
 
@@ -64,11 +67,13 @@ jobs:
           set -euo pipefail
           test -f docs/INDEPENDENT_CLIENT_PRODUCT_CHARTER.md
           test -f docs/PRODUCT_INDEX.md
+          test -f docs/DATABASE_MIGRATION_WAVE1.md
           test -f packages/store-operations/src/index.ts
           test -f packages/store-operations/src/engine.ts
           test -f apps/web-client/src/app/operations/page.tsx
           test -f apps/web-client/src/app/operations/[module]/page.tsx
           test -f apps/api-gateway/src/apps/operations-registry/operations-registry.controller.ts
+          test -f apps/api-gateway/src/apps/operations-registry/operations-registry.service.spec.ts
           test -f packages/database/prisma/schema.prisma
           test "$(grep -c "id: '" packages/store-operations/src/index.ts)" -ge 20
 
@@ -76,19 +81,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-evidence
+          cp package-lock.json release-evidence/package-lock.json
           node - <<'NODE'
           const fs = require('node:fs');
           const crypto = require('node:crypto');
           const paths = [
             'docs/INDEPENDENT_CLIENT_PRODUCT_CHARTER.md',
             'docs/PRODUCT_INDEX.md',
+            'docs/DATABASE_MIGRATION_WAVE1.md',
             'packages/store-operations/src/index.ts',
             'packages/store-operations/src/engine.ts',
             'packages/database/prisma/schema.prisma',
             'apps/web-client/src/app/page.tsx',
             'apps/web-client/src/app/operations/page.tsx',
             'apps/web-client/src/app/operations/[module]/page.tsx',
-            'apps/api-gateway/src/apps/operations-registry/operations-registry.controller.ts'
+            'apps/api-gateway/src/apps/operations-registry/operations-registry.controller.ts',
+            'apps/api-gateway/src/apps/operations-registry/operations-registry.service.spec.ts',
+            'release-evidence/package-lock.json'
           ];
           const artifacts = paths.map((path) => {
             const content = fs.readFileSync(path);
